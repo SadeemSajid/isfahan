@@ -1,0 +1,31 @@
+{
+  "canvas": {
+    "logicalWidth": 240,
+    "logicalHeight": 180,
+    "tileSize": 32,
+    "scale": 2
+  },
+  "tileset": {
+    "spriteSheet": "/assets/isometric-tileset/spritesheet.png",
+    "tileSize": 32,
+    "columns": 11,
+    "rows": 11
+  },
+  "critters": [
+    {
+      "id": "stag",
+      "name": "Stag",
+      "title": "Maral Stag"
+    },
+    {
+      "id": "badger",
+      "name": "Badger",
+      "title": "Forager Badger"
+    },
+    {
+      "id": "wolf",
+      "name": "Wolf",
+      "title": "Steppe Wolf"
+    }
+  ]
+}

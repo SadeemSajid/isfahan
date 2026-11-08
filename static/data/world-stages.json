@@ -1,0 +1,76 @@
+[
+  {
+    "id": "barren",
+    "name": "Quiet Earth",
+    "minHappiness": 0,
+    "companionMood": "sleepy",
+    "palette": {
+      "ground": "#6b5b4d",
+      "accent": "#8c7a6b",
+      "foliage": "#5e7153",
+      "water": "#4a6b82"
+    },
+    "unlockedProps": ["stone_lantern"]
+  },
+  {
+    "id": "sprouting",
+    "name": "Morning Sprouts",
+    "minHappiness": 20,
+    "companionMood": "curious",
+    "palette": {
+      "ground": "#6e6249",
+      "accent": "#9e8c6c",
+      "foliage": "#688f4e",
+      "water": "#4d7c99"
+    },
+    "unlockedProps": ["stone_lantern", "grass_tufts", "stepping_stones"]
+  },
+  {
+    "id": "blooming",
+    "name": "Woodland Glade",
+    "minHappiness": 45,
+    "companionMood": "content",
+    "palette": {
+      "ground": "#636b46",
+      "accent": "#b89f65",
+      "foliage": "#5da346",
+      "water": "#3d94b8"
+    },
+    "unlockedProps": ["stone_lantern", "grass_tufts", "stepping_stones", "rose_bushes", "cypress_sapling"]
+  },
+  {
+    "id": "flourishing",
+    "name": "Blooming Sanctuary",
+    "minHappiness": 70,
+    "companionMood": "happy",
+    "palette": {
+      "ground": "#527843",
+      "accent": "#d4af37",
+      "foliage": "#4bb543",
+      "water": "#28b5d6"
+    },
+    "unlockedProps": ["stone_lantern", "grass_tufts", "stepping_stones", "rose_bushes", "cypress_tree", "mosaic_fountain"]
+  },
+  {
+    "id": "oasis",
+    "name": "Isfahan Oasis",
+    "minHappiness": 90,
+    "companionMood": "radiant",
+    "palette": {
+      "ground": "#44853d",
+      "accent": "#f5c842",
+      "foliage": "#3ec94b",
+      "water": "#1ed2f5"
+    },
+    "unlockedProps": [
+      "stone_lantern",
+      "grass_tufts",
+      "stepping_stones",
+      "rose_bushes",
+      "cypress_tree",
+      "mosaic_fountain",
+      "fireflies",
+      "book_pedestal"
+    ]
+  }
+]

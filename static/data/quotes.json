@@ -1,0 +1,51 @@
+[
+  {
+    "id": "rumi-begin",
+    "text": "As you start to walk on the way, the way appears.",
+    "author": "Jalāl al-Dīn Muḥammad Rūmī",
+    "source": "Masnavi",
+    "minHappiness": 0
+  },
+  {
+    "id": "saadi-patience",
+    "text": "Have patience. All things are difficult before they become easy.",
+    "author": "Saadi Shirazi",
+    "source": "Gulistan (The Rose Garden)",
+    "minHappiness": 10
+  },
+  {
+    "id": "marcus-aurelius-focus",
+    "text": "Concentrate every minute on doing what is in front of you with precise and genuine seriousness.",
+    "author": "Marcus Aurelius",
+    "source": "Meditations, Book II",
+    "minHappiness": 20
+  },
+  {
+    "id": "hafez-light",
+    "text": "I wish I could show you, when you are lonely or in darkness, the astonishing light of your own being.",
+    "author": "Hafez",
+    "source": "Divan-e-Hafez",
+    "minHappiness": 35
+  },
+  {
+    "id": "avicenna-knowledge",
+    "text": "The knowledge of anything, since all things have causes, is not acquired or complete unless it is known by its causes.",
+    "author": "Ibn Sina (Avicenna)",
+    "source": "The Book of Healing",
+    "minHappiness": 50
+  },
+  {
+    "id": "seneca-begin",
+    "text": "It is not because things are difficult that we do not dare; it is because we do not dare that they are difficult.",
+    "author": "Seneca",
+    "source": "Moral Letters to Lucilius",
+    "minHappiness": 65
+  },
+  {
+    "id": "ferdowsi-wisdom",
+    "text": "May wisdom be your guide and keep your heart from every sorrow.",
+    "author": "Ferdowsi",
+    "source": "Shahnameh",
+    "minHappiness": 80
+  }
+]

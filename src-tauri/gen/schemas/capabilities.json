@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Minimal offline-only capabilities for the Isfahan overlay window","local":true,"windows":["main"],"permissions":["core:default","core:window:allow-set-ignore-cursor-events","core:window:allow-start-dragging","core:window:allow-set-position","autostart:allow-enable","autostart:allow-disable","autostart:allow-is-enabled"]}}
