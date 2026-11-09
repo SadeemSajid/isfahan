@@ -47,10 +47,10 @@
 			companion.showRandomQuote();
 		});
 
-		// Happiness gradual decay interval
+		// Check for midnight day rollover once per minute
 		decayTimer = setInterval(() => {
 			companion.decayStep();
-		}, 4000);
+		}, 60_000);
 
 		if (isTauriRuntime()) {
 			(async () => {

@@ -2,6 +2,8 @@ export type CompanionMood = 'sleepy' | 'curious' | 'content' | 'happy' | 'radian
 
 export type CritterId = 'stag' | 'badger' | 'wolf';
 
+export type MapId = 'oasis' | 'stone_isle';
+
 export type IsoDirection = 'SE' | 'SW' | 'NE' | 'NW';
 
 export type WorldPropId =
@@ -16,11 +18,10 @@ export type WorldPropId =
 	| 'book_pedestal';
 
 export interface Quote {
-	id: string;
+	id?: string | number;
 	text: string;
 	author: string;
 	source: string;
-	minHappiness: number;
 }
 
 export interface StagePalette {
@@ -46,6 +47,12 @@ export interface TileCoord {
 
 export interface CritterOption {
 	id: CritterId;
+	name: string;
+	title: string;
+}
+
+export interface MapOption {
+	id: MapId;
 	name: string;
 	title: string;
 }

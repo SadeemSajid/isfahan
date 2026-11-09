@@ -1,12 +1,35 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager, PhysicalPosition, State, Window};
 use tauri_plugin_autostart::MacosLauncher;
 
+/// Minimum interval (ms) between emitted `keystroke_tick` IPC events to prevent
+/// key-repeat storms from flooding WebView IPC while preserving full typing responsiveness.
+const MIN_TICK_INTERVAL_MS: u64 = 40;
+
+#[inline]
+fn should_emit_tick(last_tick_ms: &AtomicU64) -> bool {
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let prev = last_tick_ms.load(Ordering::Relaxed);
+    if now_ms.saturating_sub(prev) < MIN_TICK_INTERVAL_MS {
+        return false;
+    }
+    last_tick_ms.store(now_ms, Ordering::Relaxed);
+    true
+}
+
+struct GhostSignal {
+    enabled: Mutex<bool>,
+    cvar: Condvar,
+}
+
 struct OverlayState {
-    ghost_mode: Arc<AtomicBool>,
+    ghost: Arc<GhostSignal>,
 }
 
 /// Toggle Ghost (click-through) mode on the transparent overlay window.
@@ -19,41 +42,58 @@ fn set_click_through(
     state: State<'_, OverlayState>,
     ignore: bool,
 ) -> Result<(), String> {
-    state.ghost_mode.store(ignore, Ordering::SeqCst);
+    if let Ok(mut enabled) = state.ghost.enabled.lock() {
+        *enabled = ignore;
+        state.ghost.cvar.notify_all();
+    }
     window
         .set_ignore_cursor_events(ignore)
         .map_err(|e| e.to_string())
 }
 
-/// Position the overlay neatly in the bottom-right corner of the primary monitor on startup.
+/// Position the overlay neatly in the bottom-right corner of the primary monitor on startup,
+/// with enough bottom clearance to stay above the macOS Dock and Windows Taskbar.
 fn position_bottom_right(window: &tauri::WebviewWindow) {
     if let Ok(Some(monitor)) = window.current_monitor() {
         let screen_size = monitor.size();
         let scale = monitor.scale_factor();
         let win_width = (384.0 * scale) as i32;
         let win_height = (288.0 * scale) as i32;
-        let margin = (20.0 * scale) as i32;
+        let right_margin = (24.0 * scale) as i32;
+        let bottom_margin = (96.0 * scale) as i32;
 
-        let x = (screen_size.width as i32 - win_width - margin).max(0);
-        let y = (screen_size.height as i32 - win_height - (margin * 2)).max(0);
+        let x = (screen_size.width as i32 - win_width - right_margin).max(0);
+        let y = (screen_size.height as i32 - win_height - bottom_margin).max(0);
 
         let _ = window.set_position(PhysicalPosition::new(x, y));
     }
 }
 
-/// Background watcher that allows the bottom HUD bar to remain clickable even when Ghost mode is on.
-fn start_ghost_hud_watcher(window: tauri::WebviewWindow, ghost_mode: Arc<AtomicBool>) {
+/// Background watcher that allows the bottom HUD bar to remain clickable when Ghost mode is on.
+/// Sleeps on a Condvar with 0% CPU usage whenever Ghost mode is disabled.
+fn start_ghost_hud_watcher(window: tauri::WebviewWindow, ghost: Arc<GhostSignal>) {
     thread::spawn(move || {
         let mut currently_ignoring = false;
+        let scale = window.scale_factor().unwrap_or(1.0);
+        let hud_height_phys = 36.0 * scale;
 
         loop {
-            thread::sleep(Duration::from_millis(60));
-
-            if !ghost_mode.load(Ordering::Relaxed) {
-                if currently_ignoring {
-                    let _ = window.set_ignore_cursor_events(false);
-                    currently_ignoring = false;
+            // Park thread with zero CPU wakeups while Ghost mode is off
+            {
+                let mut enabled = ghost.enabled.lock().unwrap();
+                while !*enabled {
+                    if currently_ignoring {
+                        let _ = window.set_ignore_cursor_events(false);
+                        currently_ignoring = false;
+                    }
+                    enabled = ghost.cvar.wait(enabled).unwrap();
                 }
+            }
+
+            thread::sleep(Duration::from_millis(100));
+
+            let is_enabled = ghost.enabled.lock().map(|g| *g).unwrap_or(false);
+            if !is_enabled {
                 continue;
             }
 
@@ -66,10 +106,7 @@ fn start_ghost_hud_watcher(window: tauri::WebviewWindow, ghost_mode: Arc<AtomicB
             let Ok(win_size) = window.outer_size() else {
                 continue;
             };
-            let scale = window.scale_factor().unwrap_or(1.0);
 
-            // Bottom HUD bar occupies the bottom 36 logical pixels of the window
-            let hud_height_phys = 36.0 * scale;
             let win_x = win_pos.x as f64;
             let win_y = win_pos.y as f64;
             let win_w = win_size.width as f64;
@@ -94,6 +131,7 @@ fn start_ghost_hud_watcher(window: tauri::WebviewWindow, ghost_mode: Arc<AtomicB
 mod macos_listener {
     use std::ffi::c_void;
     use std::ptr;
+    use std::sync::atomic::AtomicU64;
     use tauri::{AppHandle, Emitter};
 
     type CFMachPortRef = *mut c_void;
@@ -114,6 +152,7 @@ mod macos_listener {
     struct TapContext {
         app_handle: AppHandle,
         tap: CFMachPortRef,
+        last_tick_ms: AtomicU64,
     }
 
     #[link(name = "CoreGraphics", kind = "framework")]
@@ -161,7 +200,9 @@ mod macos_listener {
 
         if event_type == K_CG_EVENT_KEY_DOWN {
             // Privacy by design: we never read the keycode or character from `event`.
-            let _ = ctx.app_handle.emit("keystroke_tick", ());
+            if super::should_emit_tick(&ctx.last_tick_ms) {
+                let _ = ctx.app_handle.emit("keystroke_tick", ());
+            }
         } else if event_type == K_CG_EVENT_TAP_DISABLED_BY_TIMEOUT && !ctx.tap.is_null() {
             CGEventTapEnable(ctx.tap, true);
         }
@@ -174,6 +215,7 @@ mod macos_listener {
             let ctx_ptr = Box::into_raw(Box::new(TapContext {
                 app_handle,
                 tap: ptr::null_mut(),
+                last_tick_ms: AtomicU64::new(0),
             }));
 
             let event_mask: CGEventMask = 1 << K_CG_EVENT_KEY_DOWN;
@@ -215,9 +257,12 @@ fn start_keystroke_listener(app_handle: AppHandle) {
     use rdev::{listen, EventType};
     use tauri::Emitter;
 
+    let last_tick_ms = AtomicU64::new(0);
     if let Err(error) = listen(move |event| {
         if let EventType::KeyPress(_) = event.event_type {
-            let _ = app_handle.emit("keystroke_tick", ());
+            if should_emit_tick(&last_tick_ms) {
+                let _ = app_handle.emit("keystroke_tick", ());
+            }
         }
     }) {
         eprintln!("Global keyboard listener error: {:?}", error);
@@ -231,11 +276,14 @@ fn start_keystroke_listener(app_handle: AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let ghost_mode = Arc::new(AtomicBool::new(false));
+    let ghost = Arc::new(GhostSignal {
+        enabled: Mutex::new(false),
+        cvar: Condvar::new(),
+    });
 
     tauri::Builder::default()
         .manage(OverlayState {
-            ghost_mode: ghost_mode.clone(),
+            ghost: ghost.clone(),
         })
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
@@ -245,7 +293,7 @@ pub fn run() {
         .setup(move |app| {
             if let Some(main_window) = app.get_webview_window("main") {
                 position_bottom_right(&main_window);
-                start_ghost_hud_watcher(main_window, ghost_mode.clone());
+                start_ghost_hud_watcher(main_window, ghost.clone());
             }
 
             let app_handle = app.handle().clone();

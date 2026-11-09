@@ -57,16 +57,47 @@ All quotes are stored locally in [`static/data/quotes.json`](./static/data/quote
   "id": "golestan-patience",
   "text": "Have patience. All things are difficult before they become easy.",
   "author": "Saadi Shirazi",
-  "source": "Gulistan (1258)",
-  "minHappiness": 20
+  "source": "Gulistan (1258)"
 }
 ```
 
-- `id`: Unique string identifier for the quote.
+- `id`: String or number identifier for the quote (e.g., `"1"`, `1`, or `"golestan-patience"`).
 - `text`: The quote displayed inside the pixel-art speech bubble.
 - `author`: Author name.
 - `source`: Book or text title.
-- `minHappiness`: Minimum daily progress percentage (`0`–`100`) required before this quote enters the random selection pool.
+
+### 3. Resetting & Testing Progression in Development
+
+- **Reset to `0` Words**: Click the small **`↺`** button right next to the progress bar in the bottom HUD to reset today's word count and happiness back to `0%`.
+- **Fast-Forward `+200` Words**: Hold **`Shift` + Click** directly on the green progress bar in the bottom HUD to add `+200 words` (`+20%`) and quickly preview each map stage.
+
+## CI/CD, Nightly Builds & Versioned Releases
+
+GitHub Actions is split into two workflows under [`.github/workflows/`](./.github/workflows/):
+
+1. **Continuous Integration & Nightly Builds ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml))**:
+   - Runs automatically on every push and pull request to `main`.
+   - Verifies TypeScript/Svelte (`bun run check`), frontend production bundle (`bun run build`), and Rust compilation (`cargo check`) across **Windows** and **macOS**.
+   - On every push to `main`, compiles and uploads downloadable **Nightly Workflow Artifacts** (retained for 14 days in the GitHub Actions run summary):
+     - `isfahan-windows-x64` (`.msi` and `.exe` NSIS installers)
+     - `isfahan-macos-arm64` (Apple Silicon `.dmg` and `.app`)
+     - `isfahan-macos-x64` (Intel macOS `.dmg` and `.app`)
+
+2. **Official Versioned Releases ([`.github/workflows/release.yml`](./.github/workflows/release.yml))**:
+   - Triggered only when you push a version tag matching `v*` (e.g., `v0.1.0`, `v0.2.0`).
+   - Builds Windows and macOS (Apple Silicon + Intel) installers and publishes a public **GitHub Release** with all installers attached.
+   - To bump the version across `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` and cut a release:
+
+```bash
+# 1. Bump version across all project manifests
+bun run version:bump 0.2.0
+
+# 2. Commit and push the version tag to trigger the GitHub Release
+git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+git commit -m "chore(release): v0.2.0"
+git tag v0.2.0
+git push origin main --tags
+```
 
 ## Project Layout
 

@@ -43,7 +43,7 @@
 	};
 
 	// Walkable meadow ring around the central 3x3 Oasis Pond (gx = 2..4, gy = 2..4)
-	const WALKABLE_CELLS: [number, number][] = [
+	const OASIS_WALKABLE_CELLS: [number, number][] = [
 		[1, 2],
 		[1, 3],
 		[1, 4],
@@ -63,21 +63,35 @@
 		[3, 6]
 	];
 
+	// Walkable cobblestone promenade on the Stone Isle (front/left stone terrace)
+	const STONE_ISLE_WALKABLE_CELLS: [number, number][] = [
+		[2, 2],
+		[2, 3],
+		[2, 4],
+		[3, 4],
+		[4, 4],
+		[2, 5],
+		[3, 5]
+	];
+
 	function isWalkable(gx: number, gy: number): boolean {
-		return WALKABLE_CELLS.some(([wx, wy]) => wx === gx && wy === gy);
+		const cells =
+			companion.selectedMap === 'stone_isle' ? STONE_ISLE_WALKABLE_CELLS : OASIS_WALKABLE_CELLS;
+		return cells.some(([wx, wy]) => wx === gx && wy === gy);
 	}
 
 	// Autonomous critter state on the isometric grid
-	let critterGx = 3;
-	let critterGy = 5;
-	let targetGx = 3;
-	let targetGy = 5;
+	let critterGx = 2;
+	let critterGy = 4;
+	let targetGx = 2;
+	let targetGy = 4;
 	let moveProgress = 0;
 	let isMoving = false;
 	let critterDir: IsoDirection = 'SE';
 	let idleTicksRemaining = 48;
 	let animFrame = 0;
 	let renderSubTick = 0;
+	let lastMapId = companion.selectedMap;
 
 	// Realistic Ambient Particle System (fireflies, drifting blossom petals, water glints, typing motes)
 	interface AmbientParticle {
@@ -102,14 +116,14 @@
 				kind,
 				x: 42 + Math.random() * 156,
 				y: 44 + Math.random() * 98,
-				vx: (Math.random() - 0.5) * 0.18,
-				vy: -0.05 - Math.random() * 0.12,
+				vx: (Math.random() - 0.5) * 0.32,
+				vy: -0.09 - Math.random() * 0.2,
 				phase: Math.random() * Math.PI * 2,
-				phaseSpeed: 0.06 + Math.random() * 0.05,
+				phaseSpeed: 0.11 + Math.random() * 0.08,
 				life: 0,
-				maxLife: 160 + Math.random() * 140,
+				maxLife: 85 + Math.random() * 75,
 				colorCore: '#fffbe0',
-				colorGlow: 'rgba(255, 220, 105, '
+				colorGlow: '#ffdc69'
 			};
 		}
 		if (kind === 'petal') {
@@ -118,17 +132,35 @@
 				kind,
 				x: 36 + Math.random() * 160,
 				y: 34 + Math.random() * 40,
-				vx: 0.12 + Math.random() * 0.14,
-				vy: 0.14 + Math.random() * 0.12,
+				vx: 0.22 + Math.random() * 0.24,
+				vy: 0.24 + Math.random() * 0.2,
 				phase: Math.random() * Math.PI * 2,
-				phaseSpeed: 0.08 + Math.random() * 0.04,
+				phaseSpeed: 0.14 + Math.random() * 0.07,
 				life: 0,
-				maxLife: 140 + Math.random() * 100,
+				maxLife: 75 + Math.random() * 55,
 				colorCore: isRose ? '#ff9ebb' : '#ffe180',
-				colorGlow: isRose ? 'rgba(232, 74, 95, ' : 'rgba(245, 200, 66, '
+				colorGlow: isRose ? '#e84a5f' : '#f5c842'
 			};
 		}
 		if (kind === 'glint') {
+			if (companion.selectedMap === 'stone_isle') {
+				const angle = Math.random() * Math.PI * 2;
+				const rx = 50 + Math.random() * 24;
+				const ry = 24 + Math.random() * 14;
+				return {
+					kind,
+					x: 118 + Math.cos(angle) * rx,
+					y: 92 + Math.sin(angle) * ry,
+					vx: 0,
+					vy: 0,
+					phase: 0,
+					phaseSpeed: 0.18,
+					life: 0,
+					maxLife: 28 + Math.random() * 22,
+					colorCore: '#ffffff',
+					colorGlow: '#a8f5ff'
+				};
+			}
 			// Shimmering light glints on the 3x3 pond surface
 			return {
 				kind,
@@ -137,11 +169,11 @@
 				vx: 0,
 				vy: 0,
 				phase: 0,
-				phaseSpeed: 0.1,
+				phaseSpeed: 0.18,
 				life: 0,
-				maxLife: 50 + Math.random() * 40,
+				maxLife: 28 + Math.random() * 22,
 				colorCore: '#ffffff',
-				colorGlow: 'rgba(168, 245, 255, '
+				colorGlow: '#a8f5ff'
 			};
 		}
 		// 'mote' — rising inspiration spark around the critter when typing
@@ -149,14 +181,14 @@
 			kind: 'mote',
 			x: (originX ?? 120) + (Math.random() - 0.5) * 14,
 			y: (originY ?? 100) - 8 + (Math.random() - 0.5) * 6,
-			vx: (Math.random() - 0.5) * 0.16,
-			vy: -0.28 - Math.random() * 0.18,
+			vx: (Math.random() - 0.5) * 0.28,
+			vy: -0.48 - Math.random() * 0.3,
 			phase: Math.random() * Math.PI * 2,
-			phaseSpeed: 0.12,
+			phaseSpeed: 0.2,
 			life: 0,
-			maxLife: 38 + Math.random() * 24,
+			maxLife: 22 + Math.random() * 14,
 			colorCore: Math.random() > 0.4 ? '#ffe98a' : '#ff8da6',
-			colorGlow: 'rgba(255, 180, 120, '
+			colorGlow: '#ffb478'
 		};
 	}
 
@@ -164,9 +196,9 @@
 		const h = companion.happiness;
 
 		// Target counts scale organically with world happiness
-		const targetFireflies = h >= 75 ? 9 : h >= 40 ? 5 : 2;
-		const targetPetals = h >= 65 ? 5 : h >= 35 ? 2 : 0;
-		const targetGlints = h >= 20 ? 4 : 0;
+		const targetFireflies = h >= 75 ? 8 : h >= 40 ? 4 : 2;
+		const targetPetals = h >= 65 ? 4 : h >= 35 ? 2 : 0;
+		const targetGlints = h >= 20 ? 3 : 0;
 
 		let fireflyCount = 0;
 		let petalCount = 0;
@@ -178,24 +210,25 @@
 			else if (p.kind === 'glint') glintCount++;
 		}
 
-		if (fireflyCount < targetFireflies && Math.random() < 0.15) {
+		if (fireflyCount < targetFireflies && Math.random() < 0.22) {
 			particles.push(spawnAmbientParticle('firefly'));
 		}
-		if (petalCount < targetPetals && Math.random() < 0.08) {
+		if (petalCount < targetPetals && Math.random() < 0.14) {
 			particles.push(spawnAmbientParticle('petal'));
 		}
-		if (glintCount < targetGlints && Math.random() < 0.12) {
+		if (glintCount < targetGlints && Math.random() < 0.2) {
 			particles.push(spawnAmbientParticle('glint'));
 		}
 
 		// Spawn rising inspiration motes around critter during typing bursts
-		if (companion.isTypingBurst && Math.random() < 0.45) {
+		if (companion.isTypingBurst && Math.random() < 0.55) {
 			const curGx = isMoving ? critterGx + (targetGx - critterGx) * moveProgress : critterGx;
 			const curGy = isMoving ? critterGy + (targetGy - critterGy) * moveProgress : critterGy;
 			const cPos = isoToScreen(curGx, curGy, 0);
 			particles.push(spawnAmbientParticle('mote', cPos.x + 16, cPos.y - 8));
 		}
 
+		// Zero-allocation particle rendering using globalAlpha + static hex colors
 		for (let i = particles.length - 1; i >= 0; i--) {
 			const p = particles[i];
 			p.life += 1;
@@ -205,83 +238,70 @@
 			}
 
 			p.phase += p.phaseSpeed;
-			const lifeProgress = p.life / p.maxLife;
-			// Smooth fade-in and fade-out envelope
-			const envelope = Math.sin(lifeProgress * Math.PI);
+			const envelope = Math.sin((p.life / p.maxLife) * Math.PI);
 
 			if (p.kind === 'firefly') {
-				p.x += p.vx + Math.sin(p.phase) * 0.18;
-				p.y += p.vy + Math.cos(p.phase * 0.7) * 0.08;
+				p.x += p.vx + Math.sin(p.phase) * 0.28;
+				p.y += p.vy + Math.cos(p.phase * 0.7) * 0.12;
 
 				const pulse = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(p.phase * 1.4));
-				const alpha = +(envelope * pulse).toFixed(2);
+				const alpha = envelope * pulse;
 				const px = Math.round(p.x);
 				const py = Math.round(p.y);
 
-				// Soft outer lantern glow halo
-				ctx.fillStyle = `${p.colorGlow}${(alpha * 0.28).toFixed(2)})`;
+				ctx.fillStyle = p.colorGlow;
+				ctx.globalAlpha = alpha * 0.28;
 				ctx.fillRect(px - 2, py - 1, 5, 3);
 				ctx.fillRect(px - 1, py - 2, 3, 5);
 
-				// Inner warm aura
-				ctx.fillStyle = `${p.colorGlow}${(alpha * 0.55).toFixed(2)})`;
+				ctx.globalAlpha = alpha * 0.55;
 				ctx.fillRect(px - 1, py - 1, 3, 3);
 
-				// Crisp bright center core
-				ctx.save();
 				ctx.globalAlpha = alpha;
 				ctx.fillStyle = p.colorCore;
 				ctx.fillRect(px, py, 1, 1);
-				ctx.restore();
 			} else if (p.kind === 'petal') {
-				// Swaying breeze motion as blossom petals drift downward
-				p.x += p.vx + Math.sin(p.phase) * 0.25;
+				p.x += p.vx + Math.sin(p.phase) * 0.35;
 				p.y += p.vy;
 
 				const px = Math.round(p.x);
 				const py = Math.round(p.y);
-				const alpha = +(envelope * 0.85).toFixed(2);
 
-				ctx.save();
-				ctx.globalAlpha = alpha;
+				ctx.globalAlpha = envelope * 0.85;
 				ctx.fillStyle = p.colorCore;
-				// Tiny 2-pixel fluttering petal shape that tilts with phase
 				ctx.fillRect(px, py, 2, 1);
-				if (Math.sin(p.phase) > 0) {
-					ctx.fillRect(px + 1, py + 1, 1, 1);
-				} else {
-					ctx.fillRect(px, py + 1, 1, 1);
-				}
-				ctx.restore();
+				ctx.fillRect(Math.sin(p.phase) > 0 ? px + 1 : px, py + 1, 1, 1);
 			} else if (p.kind === 'glint') {
 				const px = Math.round(p.x);
 				const py = Math.round(p.y);
-				const alpha = +(envelope * 0.75).toFixed(2);
+				const alpha = envelope * 0.75;
 
-				ctx.fillStyle = `${p.colorGlow}${(alpha * 0.45).toFixed(2)})`;
+				ctx.fillStyle = p.colorGlow;
+				ctx.globalAlpha = alpha * 0.45;
 				ctx.fillRect(px - 1, py, 3, 1);
-				ctx.save();
+
 				ctx.globalAlpha = alpha;
 				ctx.fillStyle = p.colorCore;
 				ctx.fillRect(px, py, 1, 1);
-				ctx.restore();
 			} else if (p.kind === 'mote') {
-				p.x += p.vx + Math.sin(p.phase) * 0.14;
+				p.x += p.vx + Math.sin(p.phase) * 0.22;
 				p.y += p.vy;
 
 				const px = Math.round(p.x);
 				const py = Math.round(p.y);
-				const alpha = +(envelope * 0.9).toFixed(2);
+				const alpha = envelope * 0.9;
 
-				ctx.fillStyle = `${p.colorGlow}${(alpha * 0.35).toFixed(2)})`;
+				ctx.fillStyle = p.colorGlow;
+				ctx.globalAlpha = alpha * 0.35;
 				ctx.fillRect(px - 1, py - 1, 3, 3);
-				ctx.save();
+
 				ctx.globalAlpha = alpha;
 				ctx.fillStyle = p.colorCore;
 				ctx.fillRect(px, py, 1, 1);
-				ctx.restore();
 			}
 		}
+
+		ctx.globalAlpha = 1;
 	}
 
 	function loadImage(src: string): Promise<HTMLImageElement | null> {
@@ -564,8 +584,281 @@
 		return null;
 	}
 
+	/**
+	 * ============================================================================
+	 * MAP 2: STONE ISLE (`stone_isle`)
+	 * Inspired by the reference artwork: an organic cobblestone & lush-foliage island
+	 * nestled inside a stepped dark-navy sea with animated travelling waves, glowing
+	 * underwater shoals, coastal pebbles in foam rings, and twinkling water sparkles.
+	 * Uses an 8x8 grid (gx = 0..7, gy = 0..7), centered in the canvas.
+	 * ============================================================================
+	 */
+	const STONE_ISLE_GRID_SIZE = 8;
+	const STONE_ISLE_OFFSET_X = 6;
+	const STONE_ISLE_OFFSET_Y = -12;
+
+	type StoneIsleCellKind = 'void' | 'water' | 'island_stone' | 'island_garden';
+
+	function getStoneIsleCellKind(gx: number, gy: number): StoneIsleCellKind {
+		// Stepped/notched outer water silhouette (like the reference image)
+		if (
+			(gx === 0 && gy === 0) ||
+			(gx === 1 && gy === 0) ||
+			(gx === 0 && gy === 1) ||
+			(gx === 0 && gy === 2) ||
+			(gx === 6 && gy === 0) ||
+			(gx === 7 && gy === 0) ||
+			(gx === 7 && gy === 1) ||
+			(gx === 0 && gy === 6) ||
+			(gx === 0 && gy === 7) ||
+			(gx === 1 && gy === 7) ||
+			(gx === 7 && gy === 7)
+		) {
+			return 'void';
+		}
+
+		// Back/northeast & central garden terraces that transform from stone into lush foliage
+		if (
+			(gx === 3 && gy === 1) ||
+			(gx === 4 && gy === 1) ||
+			(gx === 3 && gy === 2) ||
+			(gx === 4 && gy === 2) ||
+			(gx === 5 && gy === 2) ||
+			(gx === 3 && gy === 3) ||
+			(gx === 4 && gy === 3) ||
+			(gx === 5 && gy === 3)
+		) {
+			return 'island_garden';
+		}
+
+		// Front/southwest cobblestone promenade + rocky coastal outcrops
+		if (
+			(gx === 2 && gy === 2) ||
+			(gx === 1 && gy === 3) ||
+			(gx === 2 && gy === 3) ||
+			(gx === 2 && gy === 4) ||
+			(gx === 3 && gy === 4) ||
+			(gx === 4 && gy === 4) ||
+			(gx === 2 && gy === 5) ||
+			(gx === 3 && gy === 5)
+		) {
+			return 'island_stone';
+		}
+
+		return 'water';
+	}
+
+	/**
+	 * Selects the static dark navy water block from Row 8 (col 2..8).
+	 * The sprite itself never swaps on a timer—animation comes from gentle vertical bobbing.
+	 */
+	function getStoneIsleWaterTile(gx: number, gy: number): TileCoord {
+		const h = companion.happiness;
+
+		// Underwater blue shoals around the island shore
+		if ((gx === 5 && gy === 4) || (gx === 3 && gy === 6)) {
+			return { col: 2, row: 8 };
+		}
+		if (h >= 45 && ((gx === 4 && gy === 5) || (gx === 1 && gy === 4))) {
+			return { col: 4, row: 8 };
+		}
+		if (h >= 70 && ((gx === 6 && gy === 2) || (gx === 2 && gy === 1))) {
+			return { col: 2, row: 8 };
+		}
+
+		// Subtle dark ripple rings near the island coast
+		const nearIsland = gx >= 1 && gx <= 6 && gy >= 1 && gy <= 6;
+		if (nearIsland && (gx + gy) % 2 === 0) {
+			return { col: 5, row: 8 };
+		}
+
+		// Deep dark navy water blocks (col 6, 7, 8, row 8)
+		return { col: 6 + ((gx * 3 + gy * 5) % 3), row: 8 };
+	}
+
+	/**
+	 * Coastal rocks, pebbles in foam rings, water-lilies at higher stages,
+	 * and animated twinkling light-blue pixel water sparkles (Row 7 col 5..8).
+	 */
+	function getStoneIsleWaterOverlay(gx: number, gy: number): TileCoord | null {
+		const h = companion.happiness;
+
+		// Small coastal rocks in foam rings tucked right along the SE/SW island shore
+		if (gx === 4 && gy === 5) return { col: 4, row: 6 }; // Medium coastal rock in foam
+		if (gx === 5 && gy === 4) return { col: 5, row: 6 }; // Twin coastal pebbles in foam
+		if (gx === 2 && gy === 6) return { col: 9, row: 6 }; // Tiny single pebble in circular foam ring
+		if (gx === 6 && gy === 3 && h >= 45) return { col: 10, row: 6 }; // Emerging eastern stepping stone
+
+		// Floating water-lily blooms appear on the glowing blue shoals at Stage 4 & 5
+		if (gx === 3 && gy === 6 && h >= 70) return { col: 2, row: 7 };
+		if (gx === 1 && gy === 4 && h >= 90) return { col: 2, row: 7 };
+
+		// Animated twinkling light-blue pixel water sparkles around the island
+		if (
+			(gx === 1 && gy === 3) ||
+			(gx === 1 && gy === 5) ||
+			(gx === 2 && gy === 1) ||
+			(gx === 5 && gy === 1) ||
+			(gx === 6 && gy === 2) ||
+			(gx === 6 && gy === 4) ||
+			(gx === 5 && gy === 5) ||
+			(gx === 4 && gy === 6)
+		) {
+			const sparkleCol = 5 + ((Math.floor(animFrame / 2) + gx * 3 + gy * 7) % 4);
+			return { col: sparkleCol, row: 7 };
+		}
+
+		return null;
+	}
+
+	/**
+	 * Returns the island ground tile for `island_stone` and `island_garden` cells across all 5 stages:
+	 * - Stage 1 (0–19%): Pure weathered cobblestone (`col 2, row 6` & `col 6, row 5`)
+	 * - Stage 2 (20–44%): Mossy stone blocks (`col 5, 6, row 2`) spread across the northern ridge
+	 * - Stage 3 (45–69%): Lush green leafy canopy blocks (`col 7..10, row 2`) cover the central garden
+	 * - Stage 4 (70–89%): Deep botanical bush blocks (`col 0..2, row 3`) & mossy stone edges
+	 * - Stage 5 (90–100%): Full flourishing island garden with mossy coastal terraces
+	 */
+	function getStoneIsleLandTile(gx: number, gy: number, kind: StoneIsleCellKind): TileCoord {
+		const h = companion.happiness;
+
+		if (kind === 'island_garden') {
+			// Core garden cells: (3,2), (4,2), (3,3), (4,3)
+			if ((gx === 3 || gx === 4) && (gy === 2 || gy === 3)) {
+				if (h >= 70) {
+					return (gx + gy) % 2 === 0 ? { col: 9, row: 2 } : { col: 0, row: 3 };
+				}
+				if (h >= 45) {
+					return { col: 7 + ((gx + gy) % 3), row: 2 };
+				}
+				if (h >= 20) {
+					return { col: 5 + ((gx + gy) % 2), row: 2 };
+				}
+				return gx === 3 && gy === 3 ? { col: 6, row: 5 } : { col: 2, row: 6 };
+			}
+
+			// Outer garden ridge: (3,1), (4,1), (5,2), (5,3)
+			if (h >= 90) {
+				return { col: 8 + ((gx + gy) % 3), row: 2 };
+			}
+			if (h >= 70) {
+				return { col: 7 + ((gx + gy) % 2), row: 2 };
+			}
+			if (h >= 45) {
+				return { col: 5 + ((gx + gy) % 2), row: 2 };
+			}
+			return { col: 2, row: 6 };
+		}
+
+		// Coastal outcrop (1,3) turns mossy at Stage 4+
+		if (gx === 1 && gy === 3 && h >= 70) {
+			return { col: 5, row: 2 };
+		}
+
+		// Inner cobblestone vs water-rimmed shore cobblestone
+		const isInner = gx === 3 && gy === 4;
+		return isInner ? { col: 6, row: 5 } : { col: 2, row: 6 };
+	}
+
+	/**
+	 * Rich 5-stage botanical progression on top of the Stone Isle:
+	 * - Stage 1 (0–19%): Bare craggy rocks (`col 0, 1, row 6`) and bare driftwood (`col 4, row 4`)
+	 * - Stage 2 (20–44%): Hardy green fern tufts (`col 10, row 3`), shrubs (`col 1, row 4`), and mossy logs (`col 6, row 4`)
+	 * - Stage 3 (45–69%): First crimson/gold blossoms (`col 9, row 3`), wildflowers (`col 2, row 4`), and sprouting logs (`col 7, row 4`)
+	 * - Stage 4 (70–89%): Lush 3-flower orange/red blossom clusters (`col 8, row 3`) & purple lavender bushes (`col 0, row 4`)
+	 * - Stage 5 (90–100%): Full Isfahan Oasis bloom across every terrace and walkway border
+	 */
+	function getStoneIslePlantProp(gx: number, gy: number): TileCoord | null {
+		const h = companion.happiness;
+
+		// Walkable cobblestone promenade: stays clear except for delicate border wildflowers at Stage 5 (90%+)
+		if (isWalkable(gx, gy)) {
+			if (h >= 90 && ((gx === 2 && gy === 2) || (gx === 4 && gy === 4))) {
+				return { col: 3, row: 4 };
+			}
+			return null;
+		}
+
+		// Western rocky point (1, 3)
+		if (gx === 1 && gy === 3) {
+			if (h >= 90) return { col: 0, row: 4 }; // Purple lavender bush
+			if (h >= 70) return { col: 2, row: 4 }; // Wildflower cluster
+			if (h >= 45) return { col: 7, row: 4 }; // Sprouting mossy log
+			if (h >= 20) return { col: 6, row: 4 }; // Mossy log
+			return { col: 4, row: 4 }; // Bare driftwood log
+		}
+
+		// Northern ridge (3, 1) & (4, 1)
+		if (gx === 3 && gy === 1) {
+			if (h >= 70) return { col: 0, row: 4 }; // Purple blossom bush
+			if (h >= 45) return { col: 1, row: 4 }; // Lush green shrub
+			if (h >= 20) return { col: 10, row: 3 }; // Fern shoots
+			return { col: 0, row: 6 }; // Craggy grey spire
+		}
+		if (gx === 4 && gy === 1) {
+			if (h >= 90) return { col: 8, row: 3 }; // 3-flower orange/red blossom cluster
+			if (h >= 70) return { col: 9, row: 3 }; // Crimson/gold flower
+			if (h >= 45) return { col: 10, row: 3 }; // Fern tuft
+			return { col: 1, row: 6 }; // Low grey stone
+		}
+
+		// Main central garden patch: (3, 2), (4, 2), (3, 3), (4, 3)
+		if (gx === 3 && gy === 2) {
+			if (h >= 45) return { col: 8, row: 3 }; // Iconic 3-flower orange/red cluster from reference image
+			if (h >= 20) return { col: 10, row: 3 }; // Young green shoots
+			return null;
+		}
+		if (gx === 4 && gy === 2) {
+			if (h >= 70) return { col: 8, row: 3 }; // Full orange/red blossom cluster
+			if (h >= 45) return { col: 9, row: 3 }; // Single red/gold blossom
+			if (h >= 20) return { col: 1, row: 4 }; // Green shrub
+			return null;
+		}
+		if (gx === 3 && gy === 3) {
+			if (h >= 70) return { col: 9, row: 3 }; // Red/gold blossom on inner garden edge
+			if (h >= 45) return { col: 2, row: 4 }; // Yellow/red wildflowers
+			if (h >= 20) return { col: 10, row: 3 }; // Fern shoots
+			return null;
+		}
+		if (gx === 4 && gy === 3) {
+			if (h >= 90) return { col: 8, row: 3 }; // Peak Oasis blossom cluster
+			if (h >= 70) return { col: 2, row: 4 }; // Wildflowers
+			if (h >= 45) return { col: 10, row: 3 }; // Fern tuft
+			return null;
+		}
+
+		// Eastern garden terrace: (5, 2) & (5, 3)
+		if (gx === 5 && gy === 2) {
+			if (h >= 90) return { col: 0, row: 4 }; // Purple blossom bush
+			if (h >= 70) return { col: 9, row: 3 }; // Red/gold flower
+			if (h >= 45) return { col: 10, row: 3 }; // Fern shoots
+			return { col: 9, row: 5 }; // Weathered grey boulder
+		}
+		if (gx === 5 && gy === 3) {
+			if (h >= 90) return { col: 9, row: 3 };
+			if (h >= 70) return { col: 3, row: 4 };
+			if (h >= 20) return { col: 10, row: 3 };
+			return null;
+		}
+
+		return null;
+	}
+
 	function stepCritterSimulation(): void {
 		animFrame = (animFrame + 1) % 10000;
+
+		if (companion.selectedMap !== lastMapId) {
+			lastMapId = companion.selectedMap;
+			if (!isWalkable(critterGx, critterGy)) {
+				const fallback = companion.selectedMap === 'stone_isle' ? [2, 4] : [3, 5];
+				critterGx = fallback[0];
+				critterGy = fallback[1];
+				targetGx = fallback[0];
+				targetGy = fallback[1];
+				moveProgress = 0;
+				isMoving = false;
+			}
+		}
 
 		if (isMoving) {
 			const speed = companion.isTypingBurst ? 0.2 : 0.12;
@@ -610,7 +903,11 @@
 	function drawCritter(ctx: CanvasRenderingContext2D): void {
 		const curGx = isMoving ? critterGx + (targetGx - critterGx) * moveProgress : critterGx;
 		const curGy = isMoving ? critterGy + (targetGy - critterGy) * moveProgress : critterGy;
-		const pos = isoToScreen(curGx, curGy, 0);
+		const rawPos = isoToScreen(curGx, curGy, 0);
+		const pos = {
+			x: companion.selectedMap === 'stone_isle' ? rawPos.x + STONE_ISLE_OFFSET_X : rawPos.x,
+			y: companion.selectedMap === 'stone_isle' ? rawPos.y + STONE_ISLE_OFFSET_Y - 2 : rawPos.y
+		};
 
 		const critterId = companion.selectedCritter;
 		const action: CritterAction = isMoving
@@ -658,14 +955,51 @@
 		);
 
 		// Painter's Algorithm: render back-to-front by (gx + gy)
-		for (let sum = 0; sum <= (GRID_SIZE - 1) * 2; sum++) {
-			for (let gx = 0; gx < GRID_SIZE; gx++) {
+		const activeGridSize =
+			companion.selectedMap === 'stone_isle' ? STONE_ISLE_GRID_SIZE : GRID_SIZE;
+
+		for (let sum = 0; sum <= (activeGridSize - 1) * 2; sum++) {
+			for (let gx = 0; gx < activeGridSize; gx++) {
 				const gy = sum - gx;
-				if (gy < 0 || gy >= GRID_SIZE) continue;
+				if (gy < 0 || gy >= activeGridSize) continue;
 
-				const basePos = isoToScreen(gx, gy, 0);
+				const basePos =
+					companion.selectedMap === 'stone_isle'
+						? {
+								x: isoToScreen(gx, gy, 0).x + STONE_ISLE_OFFSET_X,
+								y: isoToScreen(gx, gy, 0).y + STONE_ISLE_OFFSET_Y
+							}
+						: isoToScreen(gx, gy, 0);
 
-				if (isElevatedSanctuary(gx, gy)) {
+				if (companion.selectedMap === 'stone_isle') {
+					const kind = getStoneIsleCellKind(gx, gy);
+					if (kind === 'void') continue;
+
+					// Slow, gentle vertical bobbing (-1px, 0px, +1px) without changing water sprites
+					const waveOffset = Math.round(Math.sin(animFrame * 0.16 + (gx + gy) * 0.6) * 0.72);
+
+					if (kind === 'water') {
+						const waterTile = getStoneIsleWaterTile(gx, gy);
+						drawSheetTile(ctx, waterTile.col, waterTile.row, basePos.x, basePos.y + waveOffset);
+
+						const waterOverlay = getStoneIsleWaterOverlay(gx, gy);
+						if (waterOverlay) {
+							const yOff = waterOverlay.row === 6 ? -2 + waveOffset : waveOffset;
+							drawSheetTile(ctx, waterOverlay.col, waterOverlay.row, basePos.x, basePos.y + yOff);
+						}
+					} else {
+						// Draw bobbing water underneath coastal cobblestone so foam rims blend into the sea
+						drawSheetTile(ctx, 6, 8, basePos.x, basePos.y + 2 + waveOffset);
+
+						const landTile = getStoneIsleLandTile(gx, gy, kind);
+						drawSheetTile(ctx, landTile.col, landTile.row, basePos.x, basePos.y - 2);
+
+						const plant = getStoneIslePlantProp(gx, gy);
+						if (plant) {
+							drawSheetTile(ctx, plant.col, plant.row, basePos.x, basePos.y - 10);
+						}
+					}
+				} else if (isElevatedSanctuary(gx, gy)) {
 					drawSheetTile(ctx, 6, 5, basePos.x, basePos.y);
 					const topTile = getGroundTile(gx, gy);
 					const topPos = isoToScreen(gx, gy, 1);
@@ -678,7 +1012,7 @@
 				} else if (isPondCell(gx, gy)) {
 					drawSheetTile(ctx, 6, 8, basePos.x, basePos.y + 1);
 
-					const waveOffset = Math.round(Math.sin(animFrame * 0.28 + (gx + gy) * 0.9) * 0.55);
+					const waveOffset = Math.round(Math.sin(animFrame * 0.16 + (gx + gy) * 0.6) * 0.72);
 					const waterTile = getGroundTile(gx, gy);
 					drawSheetTile(ctx, waterTile.col, waterTile.row, basePos.x, basePos.y + waveOffset);
 
@@ -707,30 +1041,52 @@
 	}
 
 	onMount(() => {
-		let intervalId: ReturnType<typeof setInterval> | null = null;
+		let timeoutId: ReturnType<typeof setTimeout> | null = null;
+		let cachedCtx: CanvasRenderingContext2D | null = null;
+		let isDestroyed = false;
 
 		preloadAssets().then(() => {
-			if (!canvasEl) return;
-			const ctx = canvasEl.getContext('2d');
-			if (ctx) drawIsometricWorld(ctx);
+			if (!canvasEl || isDestroyed) return;
+			cachedCtx = canvasEl.getContext('2d');
+			if (cachedCtx) drawIsometricWorld(cachedCtx);
 		});
 
-		// 24 FPS render loop: particles glide smoothly every 42ms, while sprite frames advance every 3rd tick (~8 FPS)
+		// Adaptive low-CPU loop: 12 FPS (82ms) while actively typing or moving, throttling down to
+		// 8 FPS (125ms) when idle, and pausing completely when the screen/document is hidden.
+		const scheduleNextTick = () => {
+			if (isDestroyed) return;
+			const isIdle = !companion.isTypingBurst && Date.now() - companion.lastKeystrokeAt > 15_000;
+			const delayMs = isIdle ? 125 : 82;
+			timeoutId = setTimeout(tick, delayMs);
+		};
+
 		const tick = () => {
-			renderSubTick = (renderSubTick + 1) % 3;
+			if (isDestroyed) return;
+			if (typeof document !== 'undefined' && document.hidden) {
+				timeoutId = setTimeout(tick, 500);
+				return;
+			}
+
+			renderSubTick = (renderSubTick + 1) % 2;
 			if (renderSubTick === 0) {
 				stepCritterSimulation();
 			}
-			if (!canvasEl) return;
-			const ctx = canvasEl.getContext('2d');
-			if (!ctx) return;
-			drawIsometricWorld(ctx);
+
+			if (!cachedCtx && canvasEl) {
+				cachedCtx = canvasEl.getContext('2d');
+			}
+			if (cachedCtx) {
+				drawIsometricWorld(cachedCtx);
+			}
+
+			scheduleNextTick();
 		};
 
-		intervalId = setInterval(tick, 42);
+		scheduleNextTick();
 
 		return () => {
-			if (intervalId) clearInterval(intervalId);
+			isDestroyed = true;
+			if (timeoutId) clearTimeout(timeoutId);
 		};
 	});
 </script>

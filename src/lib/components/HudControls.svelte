@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { companion, CRITTER_OPTIONS } from '$lib/stores/companion.svelte';
+	import { companion } from '$lib/stores/companion.svelte';
 
 	interface Props {
 		onToggleClickThrough: () => void;
@@ -9,63 +9,117 @@
 	let { onToggleClickThrough, onToggleAutostart }: Props = $props();
 </script>
 
-<div class="stage-label-above">
+<div class="stage-label-above" class:collapsed={companion.hudCollapsed}>
 	<span class="stage-name">{companion.currentStage.name}</span>
 </div>
 
-<div class="hud-bar" data-tauri-drag-region>
-	<div class="stage-info" data-tauri-drag-region>
-		<div
-			class="meter-track"
-			title="{companion.wordsToday} / 1000 words today ({Math.round(companion.happiness)}%) — {companion.nextStage ? `${companion.wordsToNextStage} words to ${companion.nextStage.name}` : 'Max stage reached!'}"
-		>
-			<div class="meter-fill" style="width: {companion.happiness}%"></div>
-		</div>
-	</div>
-
-	<div class="critter-picker" role="group" aria-label="Choose companion critter">
-		{#each CRITTER_OPTIONS as opt (opt.id)}
+{#if companion.hudCollapsed}
+	<button
+		type="button"
+		class="pixel-collapse-btn expand-floating"
+		onclick={() => companion.toggleHudCollapsed()}
+		title="Expand bottom bar"
+		aria-label="Expand bottom bar"
+	>
+		<svg width="7" height="4" viewBox="0 0 7 4" shape-rendering="crispEdges" aria-hidden="true">
+			<rect x="3" y="0" width="1" height="1" fill="currentColor" />
+			<rect x="2" y="1" width="1" height="1" fill="currentColor" />
+			<rect x="4" y="1" width="1" height="1" fill="currentColor" />
+			<rect x="1" y="2" width="1" height="1" fill="currentColor" />
+			<rect x="5" y="2" width="1" height="1" fill="currentColor" />
+		</svg>
+	</button>
+{:else}
+	<div class="hud-bar" data-tauri-drag-region>
+		<div class="stage-info" data-tauri-drag-region>
 			<button
 				type="button"
-				class="critter-btn"
-				class:selected={companion.selectedCritter === opt.id}
-				onclick={() => companion.selectCritter(opt.id)}
-				title="Companion: {opt.title}"
+				class="meter-track"
+				onclick={(e) => {
+					if (e.shiftKey) {
+						companion.addTestWords(200);
+					}
+				}}
+				title="{companion.wordsToday} / 1000 words today ({Math.round(companion.happiness)}%) — {companion.nextStage ? `${companion.wordsToNextStage} words to ${companion.nextStage.name}` : 'Max stage reached!'} (Shift+Click to add +200 test words)"
 			>
-				{opt.name}
+				<div class="meter-fill" style="width: {companion.happiness}%"></div>
 			</button>
-		{/each}
-	</div>
+			<button
+				type="button"
+				class="pixel-reset-btn"
+				onclick={() => companion.resetDailyProgress()}
+				title="Reset daily word progress to 0 (Shift+Click bar to add +200 test words)"
+				aria-label="Reset daily word progress"
+			>
+				↺
+			</button>
+		</div>
 
-	<div class="hud-actions">
-		<button
-			type="button"
-			class="hud-btn"
-			onclick={() => companion.showRandomQuote()}
-			title="Inspire me with a quote"
-		>
-			Wisdom
-		</button>
-		<button
-			type="button"
-			class="hud-btn"
-			class:active={companion.autostartEnabled}
-			onclick={onToggleAutostart}
-			title="Toggle Run on Login"
-		>
-			Auto
-		</button>
-		<button
-			type="button"
-			class="hud-btn"
-			class:active={companion.clickThroughEnabled}
-			onclick={onToggleClickThrough}
-			title="Pass mouse clicks through overlay"
-		>
-			Ghost
-		</button>
+		<div class="cycle-controls">
+			<button
+				type="button"
+				class="map-btn selected"
+				onclick={() => companion.cycleMap()}
+				title="Map: {companion.currentMapOption.title} (click to switch)"
+			>
+				{companion.currentMapOption.name}
+			</button>
+
+			<button
+				type="button"
+				class="critter-btn selected"
+				onclick={() => companion.cycleCritter()}
+				title="Companion: {companion.currentCritterOption.title} (click to switch)"
+			>
+				{companion.currentCritterOption.name}
+			</button>
+		</div>
+
+		<div class="hud-actions">
+			<button
+				type="button"
+				class="hud-btn"
+				onclick={() => companion.showRandomQuote()}
+				title="Inspire me with a quote"
+			>
+				Wisdom
+			</button>
+			<button
+				type="button"
+				class="hud-btn"
+				class:active={companion.autostartEnabled}
+				onclick={onToggleAutostart}
+				title="Toggle Run on Login"
+			>
+				Auto
+			</button>
+			<button
+				type="button"
+				class="hud-btn"
+				class:active={companion.clickThroughEnabled}
+				onclick={onToggleClickThrough}
+				title="Pass mouse clicks through overlay"
+			>
+				Ghost
+			</button>
+			<button
+				type="button"
+				class="pixel-collapse-btn"
+				onclick={() => companion.toggleHudCollapsed()}
+				title="Collapse bottom bar"
+				aria-label="Collapse bottom bar"
+			>
+				<svg width="7" height="4" viewBox="0 0 7 4" shape-rendering="crispEdges" aria-hidden="true">
+					<rect x="1" y="1" width="1" height="1" fill="currentColor" />
+					<rect x="5" y="1" width="1" height="1" fill="currentColor" />
+					<rect x="2" y="2" width="1" height="1" fill="currentColor" />
+					<rect x="4" y="2" width="1" height="1" fill="currentColor" />
+					<rect x="3" y="3" width="1" height="1" fill="currentColor" />
+				</svg>
+			</button>
+		</div>
 	</div>
-</div>
+{/if}
 
 <style>
 	.hud-bar {
@@ -99,6 +153,14 @@
 		left: 8px;
 		pointer-events: none;
 		z-index: 25;
+		transition:
+			bottom 0.18s ease,
+			opacity 0.18s ease;
+	}
+
+	.stage-label-above.collapsed {
+		bottom: 5px;
+		opacity: 0.55;
 	}
 
 	.stage-name {
@@ -116,16 +178,44 @@
 	.stage-info {
 		display: flex;
 		align-items: center;
-		gap: 5px;
+		gap: 4px;
 		min-width: 0;
 	}
 
 	.meter-track {
-		width: 44px;
+		width: 30px;
 		height: 6px;
+		padding: 0;
 		background: #362e28;
 		border: 1px solid #6b5b4d;
 		flex-shrink: 0;
+		cursor: pointer;
+		display: block;
+	}
+
+	.meter-track:hover {
+		border-color: #f5c842;
+	}
+
+	.pixel-reset-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 13px;
+		height: 13px;
+		padding: 0;
+		background: #231d19;
+		color: #b9afa3;
+		border: 1px solid #574a40;
+		font-family: inherit;
+		font-size: 9px;
+		line-height: 1;
+		cursor: pointer;
+	}
+
+	.pixel-reset-btn:hover {
+		border-color: #f5c842;
+		color: #f5c842;
 	}
 
 	.meter-fill {
@@ -134,24 +224,34 @@
 		transition: width 0.2s ease;
 	}
 
-	.critter-picker {
+	.cycle-controls {
 		display: flex;
-		gap: 3px;
+		align-items: center;
+		gap: 4px;
 	}
 
+	.map-btn,
 	.critter-btn {
 		background: #231d19;
 		color: #b9afa3;
 		border: 1px solid #574a40;
-		padding: 1px 5px;
+		padding: 1px 6px;
 		font-family: inherit;
 		font-size: 9px;
 		cursor: pointer;
 	}
 
+	.map-btn:hover,
 	.critter-btn:hover {
 		border-color: #d4af37;
 		color: #fff9ea;
+	}
+
+	.map-btn.selected {
+		background: #35586c;
+		border-color: #82d8f7;
+		color: #ffffff;
+		font-weight: bold;
 	}
 
 	.critter-btn.selected {
@@ -163,14 +263,15 @@
 
 	.hud-actions {
 		display: flex;
-		gap: 3px;
+		align-items: center;
+		gap: 2px;
 	}
 
 	.hud-btn {
 		background: #2b241f;
 		color: #d6cec2;
 		border: 1px solid #6b5b4d;
-		padding: 1px 5px;
+		padding: 1px 4px;
 		font-family: inherit;
 		font-size: 9px;
 		cursor: pointer;
@@ -185,5 +286,39 @@
 		background: #1b8a99;
 		border-color: #a8f5ff;
 		color: #ffffff;
+	}
+
+	.pixel-collapse-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 15px;
+		height: 14px;
+		padding: 0;
+		background: #231d19;
+		color: #d6cec2;
+		border: 1px solid #8c7a6b;
+		box-shadow: inset 1px 1px 0 #3d332c;
+		cursor: pointer;
+	}
+
+	.pixel-collapse-btn:hover {
+		background: #3b312a;
+		border-color: #f5c842;
+		color: #f5c842;
+	}
+
+	.expand-floating {
+		position: absolute;
+		bottom: 5px;
+		right: 6px;
+		opacity: 0.42;
+		transition: opacity 0.16s ease;
+		pointer-events: auto;
+		z-index: 30;
+	}
+
+	.expand-floating:hover {
+		opacity: 1;
 	}
 </style>

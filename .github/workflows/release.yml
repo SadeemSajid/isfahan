@@ -1,4 +1,4 @@
-name: Build & Release Desktop Installers
+name: Release Desktop Installers
 
 on:
   workflow_dispatch:
@@ -10,7 +10,8 @@ permissions:
   contents: write
 
 jobs:
-  build-tauri:
+  release-tauri:
+    name: Release (${{ matrix.platform }} ${{ matrix.args }})
     strategy:
       fail-fast: false
       matrix:
@@ -43,16 +44,23 @@ jobs:
           workspaces: './src-tauri -> target'
 
       - name: Install frontend dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
-      - name: Build Tauri application
+      - name: Verify Svelte & TypeScript before release
+        run: bun run check
+
+      - name: Build & Publish Tauri Release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v__VERSION__
           releaseName: 'Isfahan v__VERSION__'
-          releaseBody: 'Automated offline builds for Windows (.msi / .exe) and macOS.'
-          releaseDraft: true
+          releaseBody: |
+            Automated 100% offline desktop builds for **Isfahan v__VERSION__**:
+            - **Windows**: `.msi` and `.exe` (NSIS) installers
+            - **macOS (Apple Silicon)**: `aarch64` `.dmg` and `.app`
+            - **macOS (Intel)**: `x86_64` `.dmg` and `.app`
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
